@@ -6,8 +6,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: ["MD"]
-        build_type: ["Release", "Debug"]
+        build_type: [
+            {"BUILD_TYPE":"Release", "RUNTIME":"MD"},
+            {"BUILD_TYPE":"Debug",   "RUNTIME":"MDd"}
+        ]
         configuration: [
           {"WINDOWS_VERSION":"2019", "TOOLCHAIN_VERSION":"16"},
           {"WINDOWS_VERSION":"2022", "TOOLCHAIN_VERSION":"17"}
@@ -43,8 +45,8 @@ jobs:
         env:
           CC: cl
           CXX: cl
-          BUILD_TYPE: ${{matrix.build_type}}
-          RUNTIME: ${{matrix.runtime}}
+          BUILD_TYPE: ${{matrix.build_type.BUILD_TYPE}}
+          RUNTIME: ${{matrix.build_type.RUNTIME}}
           TOOLCHAIN_VERSION: ${{matrix.configuration.TOOLCHAIN_VERSION}}
         run: |
           New-Item -Path "./" -Name local_build -ItemType "directory"
