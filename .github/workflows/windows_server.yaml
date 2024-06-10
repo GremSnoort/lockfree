@@ -17,6 +17,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+#          set-safe-directory: ''
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -57,11 +61,11 @@ jobs:
           conan profile update env.CXX=cl default
           conan install ./conanfile.txt -s build_type=$Env:BUILD_TYPE --output-folder=local_build --install-folder=local_build --generator CMakeToolchain --build=missing -c:b tools.cmake.cmaketoolchain:generator=Ninja -c:h tools.cmake.cmaketoolchain:generator=Ninja -s compiler.runtime=$Env:RUNTIME
           echo CONAN_DONE
-#          cmake -B local_build -GNinja -DCMAKE_BUILD_TYPE:STRING="$Env:BUILD_TYPE" -DCMAKE_TOOLCHAIN_FILE:FILEPATH=".\local_build\build\$Env:BUILD_TYPE\generators\conan_toolchain.cmake" -DCMAKE_RUNTIME:STRING="$Env:RUNTIME"
-#
-#      - name: Build
-#        run: cmake --build local_build
-#
-#      - name: Test
-#        working-directory: local_build
-#        run: ctest --rerun-failed --output-on-failure
+          cmake -B local_build -GNinja -DCMAKE_BUILD_TYPE:STRING="$Env:BUILD_TYPE" -DCMAKE_TOOLCHAIN_FILE:FILEPATH=".\local_build\build\$Env:BUILD_TYPE\generators\conan_toolchain.cmake" -DCMAKE_RUNTIME:STRING="$Env:RUNTIME"
+
+      - name: Build
+        run: cmake --build local_build
+
+      - name: Test
+        working-directory: local_build
+        run: ctest --rerun-failed --output-on-failure

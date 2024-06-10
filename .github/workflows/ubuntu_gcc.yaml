@@ -68,29 +68,28 @@ jobs:
           BUILD_TYPE: ${{matrix.build_type}}
           CXX_STANDARD: ${{matrix.cxx_standard}}
         run: |
-          ls -la sdk/
           mkdir -p local_build
 
-#          conan install ./conanfile.txt  \
-#          -s build_type=${BUILD_TYPE}  \
-#          --output-folder=local_build \
-#          --install-folder=local_build \
-#          --generator CMakeToolchain \
-#          --build=missing \
-#          -c:b tools.cmake.cmaketoolchain:generator=Ninja \
-#          -c:h tools.cmake.cmaketoolchain:generator=Ninja
+          conan install ./conanfile.txt  \
+          -s build_type=${BUILD_TYPE}  \
+          --output-folder=local_build \
+          --install-folder=local_build \
+          --generator CMakeToolchain \
+          --build=missing \
+          -c:b tools.cmake.cmaketoolchain:generator=Ninja \
+          -c:h tools.cmake.cmaketoolchain:generator=Ninja
 
-#          cmake -B local_build -GNinja \
-#            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-#            -DCMAKE_CXX_STANDARD=${CXX_STANDARD} \
-#            -DCMAKE_C_COMPILER=${CC} \
-#            -DCMAKE_CXX_COMPILER=${CXX} \
-#            -DCMAKE_TOOLCHAIN_FILE=local_build/build/${BUILD_TYPE}/generators/conan_toolchain.cmake \
-#            -DWITH_SANITIZER=OFF
-#
-#      - name: Build
-#        run: cmake --build local_build
-#
-#      - name: Test
-#        working-directory: local_build
-#        run: ctest --rerun-failed --output-on-failure
+          cmake -B local_build -GNinja \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DCMAKE_CXX_STANDARD=${CXX_STANDARD} \
+            -DCMAKE_C_COMPILER=${CC} \
+            -DCMAKE_CXX_COMPILER=${CXX} \
+            -DCMAKE_TOOLCHAIN_FILE=local_build/build/${BUILD_TYPE}/generators/conan_toolchain.cmake \
+            -DWITH_SANITIZER=OFF
+
+      - name: Build
+        run: cmake --build local_build
+
+      - name: Test
+        working-directory: local_build
+        run: ctest --rerun-failed --output-on-failure

@@ -39,6 +39,10 @@ jobs:
           git --version
 
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+#          set-safe-directory: ''
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -89,17 +93,17 @@ jobs:
           -c:b tools.cmake.cmaketoolchain:generator=Ninja \
           -c:h tools.cmake.cmaketoolchain:generator=Ninja
 
-#          cmake -B local_build -GNinja \
-#            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-#            -DCMAKE_CXX_STANDARD=${CXX_STANDARD} \
-#            -DCMAKE_C_COMPILER=${CC} \
-#            -DCMAKE_CXX_COMPILER=${CXX} \
-#            -DCMAKE_TOOLCHAIN_FILE=local_build/build/${BUILD_TYPE}/generators/conan_toolchain.cmake \
-#            -DWITH_SANITIZER=OFF
-#
-#      - name: Build
-#        run: cmake --build local_build
-#
-#      - name: Test
-#        working-directory: local_build
-#        run: ctest --rerun-failed --output-on-failure
+          cmake -B local_build -GNinja \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DCMAKE_CXX_STANDARD=${CXX_STANDARD} \
+            -DCMAKE_C_COMPILER=${CC} \
+            -DCMAKE_CXX_COMPILER=${CXX} \
+            -DCMAKE_TOOLCHAIN_FILE=local_build/build/${BUILD_TYPE}/generators/conan_toolchain.cmake \
+            -DWITH_SANITIZER=OFF
+
+      - name: Build
+        run: cmake --build local_build
+
+      - name: Test
+        working-directory: local_build
+        run: ctest --rerun-failed --output-on-failure
