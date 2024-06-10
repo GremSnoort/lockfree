@@ -32,7 +32,6 @@ jobs:
           git --version
 
       - uses: actions/checkout@v4
-      - uses: textbook/git-checkout-submodule-action@master
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -65,18 +64,18 @@ jobs:
           BUILD_TYPE: ${{matrix.build_type}}
           CXX_STANDARD: ${{matrix.cxx_standard}}
         run: |
+          git submodule update --init --recursive
+          ls -la sdk/
           mkdir -p local_build
 
-          conan install ./conanfile.txt  \
-          -s build_type=${BUILD_TYPE}  \
-          --output-folder=local_build \
-          --install-folder=local_build \
-          --generator CMakeToolchain \
-          --build=missing \
-          -c:b tools.cmake.cmaketoolchain:generator=Ninja \
-          -c:h tools.cmake.cmaketoolchain:generator=Ninja
-
-          ls -la sdk/
+#          conan install ./conanfile.txt  \
+#          -s build_type=${BUILD_TYPE}  \
+#          --output-folder=local_build \
+#          --install-folder=local_build \
+#          --generator CMakeToolchain \
+#          --build=missing \
+#          -c:b tools.cmake.cmaketoolchain:generator=Ninja \
+#          -c:h tools.cmake.cmaketoolchain:generator=Ninja
 
 #          cmake -B local_build -GNinja \
 #            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
