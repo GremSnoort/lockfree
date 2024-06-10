@@ -72,6 +72,10 @@ endif()
 
 find_package(cxxopts REQUIRED)
 find_package(mimalloc REQUIRED)
+find_package(benchmark REQUIRED)
+find_package(Boost REQUIRED)
+#find_package(jemalloc REQUIRED)
+#message(STATUS "jemalloc_INCLUDE_DIR: ${jemalloc_INCLUDE_DIRS}")
 
 # configuration
 #############################################################################################

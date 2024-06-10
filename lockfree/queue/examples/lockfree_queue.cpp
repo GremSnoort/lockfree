@@ -10,7 +10,6 @@
 // std
 #include <vector>
 #include <thread>
-#include <unordered_map>
 
 using ThreadTimer = gremsnoort::sdk::benchmark::ThreadTimer;
 struct time_checker_t final {
@@ -104,7 +103,7 @@ public:
 
 int main(int argc, char* argv[]) {
 
-	gremsnoort::sdk::program_options_t desc(__FILE__, "One line description");
+	gremsnoort::sdk::program_options_t desc(std::string(__FILE__), std::string("One line description"));
 	static constexpr auto
 		help_o = "help",
 		prod_o = "p", prod_descr = "Producers count",
@@ -154,6 +153,9 @@ int main(int argc, char* argv[]) {
 	} else if (allocator == "mimalloc") {
 		process(process_t<type_t, gremsnoort::lockfree::allocator::mimalloc_t>());
 	}
+	//else if (allocator == "jemalloc") {
+	//	process(process_t<type_t, gremsnoort::lockfree::allocator::jemalloc_t>());
+	//}
 	else {
 		std::fprintf(stderr, "!!! Unsupported alloc `%s` !!!\n", allocator.data());
 	}
