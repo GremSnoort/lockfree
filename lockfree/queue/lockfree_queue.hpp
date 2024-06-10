@@ -109,7 +109,7 @@ namespace gremsnoort::lockfree {
 						if (auto next = expnode->next.load(); next > 0) {
 							if (observed_last.compare_exchange_weak(expected, 0, std::memory_order_relaxed)) { // set to 0 // memory_order_acquire
 								expnode->~node_t();
-								alloc::deallocate(reinterpret_cast<void*>(expnode));
+								alloc::deallocate(reinterpret_cast<void*>(expnode), alignof(node_t));
 //#ifdef USE_PMR
 //								mbr.deallocate(reinterpret_cast<void*>(expnode), sizeof(node_t), alignof(node_t));
 //#else
@@ -143,7 +143,7 @@ namespace gremsnoort::lockfree {
 						}
 						else {
 							expnode->~node_t();
-							alloc::deallocate(reinterpret_cast<void*>(expnode));
+							alloc::deallocate(reinterpret_cast<void*>(expnode), alignof(node_t));
 //#ifdef USE_PMR
 //							mbr.deallocate(reinterpret_cast<void*>(expnode), sizeof(node_t), alignof(node_t));
 //#else

@@ -9,8 +9,8 @@ namespace gremsnoort::lockfree::detail {
     };
 
     template<typename T>
-    concept __deallocateable = requires(T& a, void* arg) {
-        { std::decay_t<decltype(a)>::deallocate(arg) } -> std::same_as<void>;
+    concept __deallocateable = requires(T& a, void* arg, const std::size_t align) {
+        { std::decay_t<decltype(a)>::deallocate(arg, align) } -> std::same_as<void>;
     };
 
     template<typename T>

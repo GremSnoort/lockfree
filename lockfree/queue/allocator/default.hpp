@@ -15,7 +15,7 @@ namespace gremsnoort::lockfree::allocator {
 #endif
 		}
 
-		static auto deallocate(void* arg) -> void {
+		static auto deallocate(void* arg, const std::size_t align) -> void {
 #if defined(_MSC_VER)
 			_aligned_free(arg);
 #else
