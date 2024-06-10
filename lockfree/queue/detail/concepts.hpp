@@ -4,8 +4,8 @@
 namespace gremsnoort::lockfree::detail {
 
     template<typename T>
-    concept __allocateable = requires(const std::size_t sz, const std::size_t align) {
-        { typename T::allocate(sz, align) } -> std::same_as<void*>;
+    concept __allocateable = requires(T& a, const std::size_t sz, const std::size_t align) {
+        { std::decay_t<decltype(a)>::allocate(sz, align) } -> std::same_as<void*>;
     };
 
     template<typename T>
