@@ -2,6 +2,7 @@
 catch2/3.3.2
 benchmark/1.8.3
 cxxopts/3.2.0
+mimalloc/2.1.7
 [generators]
 CMakeDeps
 CMakeToolchain

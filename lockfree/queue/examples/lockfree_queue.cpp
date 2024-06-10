@@ -1,6 +1,7 @@
 // lockfree
 #include <lockfree/queue/lockfree_queue.hpp>
 #include <lockfree/queue/allocator/default.hpp>
+#include <lockfree/queue/allocator/mimalloc.hpp>
 
 // sdk
 #include <sdk/forward/program_options.hpp>
@@ -9,6 +10,97 @@
 // std
 #include <vector>
 #include <thread>
+#include <unordered_map>
+
+using ThreadTimer = gremsnoort::sdk::benchmark::ThreadTimer;
+struct time_checker_t final {
+	ThreadTimer& ref;
+
+	explicit time_checker_t(ThreadTimer& timer)
+		: ref(timer) {
+		ref.StartTimer();
+	}
+	~time_checker_t() {
+		ref.StopTimer();
+	}
+};
+
+struct options_t {
+	std::size_t producers_count = 4;
+	std::size_t consumers_count = 4;
+	std::size_t messages_count = 1000;
+	std::size_t sleep_on_send = 0;
+};
+
+template<class T, gremsnoort::lockfree::detail::Allocator Alloc>
+class process_t {
+	using type_t = T;
+	using alloc_t = Alloc;
+	using queue_t = gremsnoort::lockfree::queue_t<type_t, alloc_t>;
+
+	queue_t source;
+
+	std::atomic_size_t messages_all;
+	std::vector<std::thread> producers, consumers;
+
+public:
+	auto start(const options_t& opts) {
+		messages_all = opts.producers_count * opts.messages_count;
+
+		auto producer = [this, &opts]() {
+			ThreadTimer timer(ThreadTimer::CreateProcessCpuTime());
+			for (auto i = 0; i < opts.messages_count; ++i) {
+				if (opts.sleep_on_send > 0) {
+					std::this_thread::sleep_for(std::chrono::microseconds(opts.sleep_on_send));
+				}
+				time_checker_t _(timer);
+				source.push(type_t(i));
+			}
+			const auto cpu_time_used = static_cast<double>(timer.cpu_time_used()) / static_cast<double>(opts.messages_count) * 1000000;
+			const auto real_time_used = static_cast<double>(timer.real_time_used()) / static_cast<double>(opts.messages_count) * 1000000;
+
+			std::printf("%s\n", std::format("PRODUCER ({}) :: cpu_time_used = {} mcs, real_time_used = {} mcs", opts.messages_count, cpu_time_used, real_time_used).data());
+		};
+		auto consumer = [this, &opts]() {
+			ThreadTimer timer(ThreadTimer::CreateProcessCpuTime());
+			std::size_t expected = 0, consumed = 0;
+			type_t data;
+			do {
+				if (messages_all.compare_exchange_weak(expected, expected - 1)) {
+					if (expected == 0) {
+						return;
+					}
+					time_checker_t _(timer);
+					while (!source.pop(data));
+					consumed++;
+				}
+			} while (expected > 0);
+
+			const auto cpu_time_used = static_cast<double>(timer.cpu_time_used()) / static_cast<double>(consumed) * 1000000;
+			const auto real_time_used = static_cast<double>(timer.real_time_used()) / static_cast<double>(consumed) * 1000000;
+
+			std::printf("%s\n", std::format("CONSUMER ({}) :: cpu_time_used = {} mcs, real_time_used = {} mcs", consumed, cpu_time_used, real_time_used).data());
+		};
+
+		for (auto i = 0; i < opts.consumers_count; ++i) {
+			consumers.emplace_back(consumer);
+		}
+		for (auto i = 0; i < opts.producers_count; ++i) {
+			producers.emplace_back(producer);
+		}
+	}
+
+	auto stop() {
+		for (auto& p : producers) {
+			p.join();
+		}
+		producers.clear();
+		for (auto& c : consumers) {
+			c.join();
+		}
+		consumers.clear();
+	}
+};
 
 int main(int argc, char* argv[]) {
 
@@ -18,6 +110,7 @@ int main(int argc, char* argv[]) {
 		prod_o = "p", prod_descr = "Producers count",
 		cons_o = "c", cons_descr = "Consumers count",
 		msgc_o = "m", msgc_descr = "Message count per producer",
+		alloc_o = "a", alloc_descr = "Allocator (default/mimalloc)",
 		sleep_o = "s", sleep_descr = "Sleep on send per producer, in microseconds";
 
 	desc.add_options()
@@ -25,6 +118,7 @@ int main(int argc, char* argv[]) {
 		(prod_o, prod_descr, cxxopts::value<std::size_t>())
 		(cons_o, cons_descr, cxxopts::value<std::size_t>())
 		(msgc_o, msgc_descr, cxxopts::value<std::size_t>())
+		(alloc_o, alloc_descr, cxxopts::value<std::string>())
 		(sleep_o, sleep_descr, cxxopts::value<std::size_t>())
 		;
 
@@ -35,92 +129,33 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	std::size_t
-		producers_count = 4,
-		consumers_count = 4,
-		messages_count = 1000,
-		sleep_on_send = 0;
+	options_t opts;
+	std::string allocator;
 
-	desc.retrieve_opt(producers_count, prod_o, prod_descr, result, false);
-	desc.retrieve_opt(consumers_count, cons_o, cons_descr, result, false);
-	desc.retrieve_opt(messages_count, msgc_o, msgc_descr, result, false);
-	desc.retrieve_opt(sleep_on_send, sleep_o, sleep_descr, result, false);
+	desc.retrieve_opt(opts.producers_count, prod_o, prod_descr, result, false);
+	desc.retrieve_opt(opts.consumers_count, cons_o, cons_descr, result, false);
+	desc.retrieve_opt(opts.messages_count, msgc_o, msgc_descr, result, false);
+	desc.retrieve_opt(allocator, alloc_o, alloc_descr, result, false);
+	desc.retrieve_opt(opts.sleep_on_send, sleep_o, sleep_descr, result, false);
 
-	std::atomic_size_t messages_all = producers_count * messages_count;
-
-	if (messages_all <= 0 || consumers_count <= 0) {
+	if (opts.producers_count <= 0 || opts.consumers_count <= 0 || opts.messages_count <= 0) {
 		return 0;
 	}
 
 	using type_t = uint64_t;
-	using alloc_t = gremsnoort::lockfree::allocator::default_t;
-	using queue_t = gremsnoort::lockfree::queue_t<type_t, alloc_t>;
 
-	queue_t source;
-
-	using ThreadTimer = gremsnoort::sdk::benchmark::ThreadTimer;
-	struct time_checker_t final {
-		ThreadTimer& ref;
-
-		explicit time_checker_t(ThreadTimer& timer)
-			: ref(timer) {
-			ref.StartTimer();
-		}
-		~time_checker_t() {
-			ref.StopTimer();
-		}
-	};
-	
-
-	auto producer = [&source, &messages_count, &sleep_on_send]() {
-		ThreadTimer timer(ThreadTimer::CreateProcessCpuTime());
-		for (auto i = 0; i < messages_count; ++i) {
-			if (sleep_on_send > 0) {
-				std::this_thread::sleep_for(std::chrono::microseconds(sleep_on_send));
-			}
-			time_checker_t _(timer);
-			source.push(type_t(i));
-		}
-		const auto cpu_time_used = static_cast<double>(timer.cpu_time_used()) / static_cast<double>(messages_count) * 1000000;
-		const auto real_time_used = static_cast<double>(timer.real_time_used()) / static_cast<double>(messages_count) * 1000000;
-
-		std::printf("%s\n", std::format("PRODUCER ({}) :: cpu_time_used = {} mcs, real_time_used = {} mcs", messages_count, cpu_time_used, real_time_used).data());
-	};
-	auto consumer = [&source, &messages_all]() {
-		ThreadTimer timer(ThreadTimer::CreateProcessCpuTime());
-		std::size_t expected = 0, consumed = 0;
-		type_t data;
-		do {
-			if (messages_all.compare_exchange_weak(expected, expected - 1)) {
-				if (expected == 0) {
-					return;
-				}
-				time_checker_t _(timer);
-				while (!source.pop(data));
-				consumed++;
-			}
-		} while (expected > 0);
-
-		const auto cpu_time_used = static_cast<double>(timer.cpu_time_used()) / static_cast<double>(consumed) * 1000000;
-		const auto real_time_used = static_cast<double>(timer.real_time_used()) / static_cast<double>(consumed) * 1000000;
-
-		std::printf("%s\n", std::format("CONSUMER ({}) :: cpu_time_used = {} mcs, real_time_used = {} mcs", consumed, cpu_time_used, real_time_used).data());
+	auto process = [&opts](auto&& p) {
+		p.start(opts);
+		p.stop();
 	};
 
-	std::vector<std::thread> producers, consumers;
-
-	for (auto i = 0; i < consumers_count; ++i) {
-		consumers.emplace_back(consumer);
+	if (allocator == "default") {
+		process(process_t<type_t, gremsnoort::lockfree::allocator::default_t>());
+	} else if (allocator == "mimalloc") {
+		process(process_t<type_t, gremsnoort::lockfree::allocator::mimalloc_t>());
 	}
-	for (auto i = 0; i < producers_count; ++i) {
-		producers.emplace_back(producer);
-	}
-
-	for (auto& p : producers) {
-		p.join();
-	}
-	for (auto& c : consumers) {
-		c.join();
+	else {
+		std::fprintf(stderr, "!!! Unsupported alloc `%s` !!!\n", allocator.data());
 	}
 
 	return 0;

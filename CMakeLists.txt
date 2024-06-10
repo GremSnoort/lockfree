@@ -71,6 +71,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 find_package(cxxopts REQUIRED)
+find_package(mimalloc REQUIRED)
 
 # configuration
 #############################################################################################
