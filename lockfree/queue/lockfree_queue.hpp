@@ -91,8 +91,6 @@ namespace gremsnoort::lockfree {
 		}
 
 		auto pop(T& output) {
-
-			static const type_t VAL = UINT64_MAX;
 			
 			type_t expected = pop_end.load(std::memory_order_relaxed);
 			while (true) {

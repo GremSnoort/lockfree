@@ -49,7 +49,7 @@ public:
 
 		auto producer = [this, &opts]() {
 			ThreadTimer timer(ThreadTimer::CreateProcessCpuTime());
-			for (auto i = 0; i < opts.messages_count; ++i) {
+			for (std::size_t i = 0; i < opts.messages_count; ++i) {
 				if (opts.sleep_on_send > 0) {
 					std::this_thread::sleep_for(std::chrono::microseconds(opts.sleep_on_send));
 				}
@@ -82,10 +82,10 @@ public:
 			std::printf("%s\n", std::format("CONSUMER ({}) :: cpu_time_used = {} mcs, real_time_used = {} mcs", consumed, cpu_time_used, real_time_used).data());
 		};
 
-		for (auto i = 0; i < opts.consumers_count; ++i) {
+		for (std::size_t i = 0; i < opts.consumers_count; ++i) {
 			consumers.emplace_back(consumer);
 		}
-		for (auto i = 0; i < opts.producers_count; ++i) {
+		for (std::size_t i = 0; i < opts.producers_count; ++i) {
 			producers.emplace_back(producer);
 		}
 	}
