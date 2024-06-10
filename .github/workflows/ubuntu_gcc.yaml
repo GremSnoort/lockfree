@@ -64,6 +64,7 @@ jobs:
           BUILD_TYPE: ${{matrix.build_type}}
           CXX_STANDARD: ${{matrix.cxx_standard}}
         run: |
+          git config --global --add safe.directory $PWD
           git submodule update --init --recursive
           ls -la sdk/
           mkdir -p local_build
