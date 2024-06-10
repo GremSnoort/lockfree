@@ -1,6 +1,10 @@
 # lockfree
 Lockfree Collection
 
+![GCC builds](https://github.com/GremSnoort/lockfree/actions/workflows/ubuntu_gcc.yaml/badge.svg)
+![Clang builds](https://github.com/GremSnoort/lockfree/actions/workflows/ubuntu_clang.yaml/badge.svg)
+![WindowsServer builds](https://github.com/GremSnoort/lockfree/actions/workflows/windows_server.yaml/badge.svg)
+
 ## Build
 
 ### Windows MSVC
