@@ -39,10 +39,13 @@ class process_t {
 
 	queue_t source;
 
-	std::atomic_size_t messages_all;
+	std::atomic_int64_t messages_all;
 	std::vector<std::thread> producers, consumers;
 
 public:
+	process_t()
+		: source(4096) {}
+
 	auto start(const options_t& opts) {
 		messages_all = opts.producers_count * opts.messages_count;
 
@@ -53,7 +56,7 @@ public:
 					std::this_thread::sleep_for(std::chrono::microseconds(opts.sleep_on_send));
 				}
 				time_checker_t _(timer);
-				source.push(type_t(i));
+				while (!source.push(type_t(i)));
 			}
 			const auto cpu_time_used = static_cast<double>(timer.cpu_time_used()) / static_cast<double>(opts.messages_count) * 1000000;
 			const auto real_time_used = static_cast<double>(timer.real_time_used()) / static_cast<double>(opts.messages_count) * 1000000;
@@ -62,16 +65,28 @@ public:
 		};
 		auto consumer = [this, &opts]() {
 			ThreadTimer timer(ThreadTimer::CreateProcessCpuTime());
-			std::size_t expected = 0, consumed = 0;
+			int64_t expected = 0, consumed = 0;
 			type_t data;
 			do {
-				if (messages_all.compare_exchange_weak(expected, expected - 1)) {
+				if (messages_all.compare_exchange_strong(expected, expected - 1)) {
 					if (expected == 0) {
 						return;
 					}
+					if (expected < 2)
+					std::printf("Expected %zu\n", expected);
 					time_checker_t _(timer);
-					while (!source.pop(data));
-					consumed++;
+					std::size_t local = 0;
+					bool status = false;
+					while (!status) {
+						status = source.pop(data);
+						local++;
+						if (!status && local > 10000000) {
+							//std::printf("BREAK ON Expected %zu\n", expected);
+							break;
+						}
+					}
+					if (status)
+						consumed++;
 				}
 			} while (expected > 0);
 
@@ -129,7 +144,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	options_t opts;
-	std::string allocator;
+	std::string allocator = "default";
 
 	desc.retrieve_opt(opts.producers_count, prod_o, prod_descr, result, false);
 	desc.retrieve_opt(opts.consumers_count, cons_o, cons_descr, result, false);
@@ -148,17 +163,20 @@ int main(int argc, char* argv[]) {
 		p.stop();
 	};
 
-	if (allocator == "default") {
-		process(process_t<type_t, gremsnoort::lockfree::allocator::default_t>());
-	} else if (allocator == "mimalloc") {
-		process(process_t<type_t, gremsnoort::lockfree::allocator::mimalloc_t>());
-	}
-	//else if (allocator == "jemalloc") {
-	//	process(process_t<type_t, gremsnoort::lockfree::allocator::jemalloc_t>());
-	//}
-	else {
-		std::fprintf(stderr, "!!! Unsupported alloc `%s` !!!\n", allocator.data());
-	}
+	for (auto i = 0; i < 100; ++i) {
+		if (allocator == "default") {
+			process(process_t<type_t, gremsnoort::lockfree::allocator::default_t>());
+		}
+		else if (allocator == "mimalloc") {
+			process(process_t<type_t, gremsnoort::lockfree::allocator::mimalloc_t>());
+		}
+		//else if (allocator == "jemalloc") {
+		//	process(process_t<type_t, gremsnoort::lockfree::allocator::jemalloc_t>());
+		//}
+		else {
+			std::fprintf(stderr, "!!! Unsupported alloc `%s` !!!\n", allocator.data());
+		}
+	}	
 
 	return 0;
 }
