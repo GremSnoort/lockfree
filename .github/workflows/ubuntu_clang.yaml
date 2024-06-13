@@ -95,8 +95,9 @@ jobs:
           conan profile update env.CXX=${CXX} default
           conan profile update env.CC=${CC} default
 
-          conan install ./conanfile.txt  \
-          -s build_type=${BUILD_TYPE}  \
+          conan install ./conanfile.txt \
+          -s:b build_type=${BUILD_TYPE} \
+          -s:h build_type=${BUILD_TYPE} \
           --output-folder=local_build \
           --install-folder=local_build \
           --generator CMakeToolchain \

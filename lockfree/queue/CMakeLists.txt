@@ -23,3 +23,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 add_subdirectory(examples)
 add_subdirectory(benchmarks)
+add_subdirectory(tests)

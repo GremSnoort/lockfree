@@ -1,11 +1,9 @@
-// lockfree
-#include <lockfree/queue/lockfree_queue.hpp>
-#include <lockfree/queue/allocator/default.hpp>
-#include <lockfree/queue/allocator/mimalloc.hpp>
-
 // sdk
-#include <sdk/forward/program_options.hpp>
-#include <sdk/benchmark/time/thread_timer.h>
+#include <gremsnoort/sdk/forward/program_options.hpp>
+#include <gremsnoort/sdk/benchmark/time/thread_timer.h>
+
+// lockfree
+#include <lockfree/queue/queue_traits.hpp>
 
 // std
 #include <vector>
@@ -31,11 +29,10 @@ struct options_t {
 	std::size_t sleep_on_send = 0;
 };
 
-template<class T, gremsnoort::lockfree::detail::Allocator Alloc>
+template<class T>
 class process_t {
 	using type_t = T;
-	using alloc_t = Alloc;
-	using queue_t = gremsnoort::lockfree::queue_t<type_t, alloc_t>;
+	using queue_t = gremsnoort::lockfree::queue_traits<type_t>::queue_t;
 
 	queue_t source;
 
@@ -43,8 +40,7 @@ class process_t {
 	std::vector<std::thread> producers, consumers;
 
 public:
-	process_t()
-		: source(4096) {}
+	process_t() : source() {}
 
 	auto start(const options_t& opts) {
 		messages_all = opts.producers_count * opts.messages_count;
@@ -73,20 +69,10 @@ public:
 						return;
 					}
 					if (expected < 2)
-					std::printf("Expected %zu\n", expected);
+						std::printf("Expected %zu\n", expected);
 					time_checker_t _(timer);
-					std::size_t local = 0;
-					bool status = false;
-					while (!status) {
-						status = source.pop(data);
-						local++;
-						if (!status && local > 10000000) {
-							//std::printf("BREAK ON Expected %zu\n", expected);
-							break;
-						}
-					}
-					if (status)
-						consumed++;
+					while (!source.pop(data));
+					consumed++;
 				}
 			} while (expected > 0);
 
@@ -165,10 +151,10 @@ int main(int argc, char* argv[]) {
 
 	for (auto i = 0; i < 100; ++i) {
 		if (allocator == "default") {
-			process(process_t<type_t, gremsnoort::lockfree::allocator::default_t>());
+			process(process_t<type_t>());
 		}
 		else if (allocator == "mimalloc") {
-			process(process_t<type_t, gremsnoort::lockfree::allocator::mimalloc_t>());
+			process(process_t<type_t>());
 		}
 		//else if (allocator == "jemalloc") {
 		//	process(process_t<type_t, gremsnoort::lockfree::allocator::jemalloc_t>());
