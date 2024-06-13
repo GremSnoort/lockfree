@@ -19,7 +19,7 @@ namespace gremsnoort::lockfree {
 		struct node_t {
 			T payload;
 			std::atomic<type_t> next_p = 0;
-			std::atomic<type_t> next_c = 0;
+			//std::atomic<type_t> next_c = 0;
 			std::atomic_bool busy = false;
 
 			node_t() = default;
@@ -71,22 +71,22 @@ namespace gremsnoort::lockfree {
 				if (head_desired >= ringsz) {
 					head_desired = 0;
 				}
-				if (head_.compare_exchange_strong(head_expected, head_desired, std::memory_order_relaxed)) {
+				if (head_.compare_exchange_weak(head_expected, head_desired, std::memory_order_relaxed)) {
 
 					auto& bufref = ringstorage.at(head_expected);
 
 					bool busy_expected = false;
-					if (bufref.busy.compare_exchange_strong(busy_expected, true, std::memory_order_relaxed)) {
+					if (bufref.busy.compare_exchange_weak(busy_expected, true, std::memory_order_relaxed)) {
 						// DO ----------------------------------------------------------------------------------------
 						{
 							bufref.payload = value_type(std::forward<Args&&>(args)...);
-							bufref.next_p.store(0, std::memory_order_seq_cst);
-							bufref.next_c.store(0, std::memory_order_seq_cst);
+							bufref.next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
+							//bufref.next_c.store(0, std::memory_order_relaxed); // memory_order_seq_cst
 							auto node = &bufref;
 							const auto desired = reinterpret_cast<type_t>(node);
 
 							type_t expected = 0;
-							if (push_end.compare_exchange_strong(expected/*0*/, desired)) {
+							if (push_end.compare_exchange_weak(expected/*0*/, desired)) {
 								// push end is zero
 								pop_end.store(desired);
 								return true;
@@ -97,10 +97,10 @@ namespace gremsnoort::lockfree {
 								auto expnode = reinterpret_cast<node_t*>(expected);
 								expected = 0;
 								//
-								if (expnode && expnode->next_p.compare_exchange_strong(expected/*0*/, desired, std::memory_order_release)) {
+								if (expnode && expnode->next_p.compare_exchange_weak(expected/*0*/, desired, std::memory_order_relaxed)) { // memory_order_release
 									// its ours )))
-									expnode->next_c = desired; ////////////////////////////////
-									push_end.store(desired, std::memory_order_seq_cst);
+									//expnode->next_c = desired; ////////////////////////////////
+									push_end.store(desired, std::memory_order_relaxed); // memory_order_seq_cst
 									return true;
 								}
 
@@ -126,7 +126,7 @@ namespace gremsnoort::lockfree {
 			while (true) {
 				
 				if (expected == 0) { // pop_end is 0
-					if (observed_last.compare_exchange_strong(expected/*0*/, 0, std::memory_order_acquire)) { // memory_order_acquire
+					if (observed_last.compare_exchange_weak(expected/*0*/, 0, std::memory_order_relaxed)) { // memory_order_acquire
 						// 0->0 observed_last is 0
 						return false;
 					}
@@ -134,14 +134,14 @@ namespace gremsnoort::lockfree {
 						// observed_last non-0
 						assert(expected > 0);
 						auto expnode = reinterpret_cast<node_t*>(expected);
-						auto next = expnode->next_c.load();
+						auto next = expnode->next_p.load();
 						if (next > 0) {
-							if (observed_last.compare_exchange_strong(expected, 0, std::memory_order_acquire)) { // set to 0 // memory_order_acquire
+							if (observed_last.compare_exchange_weak(expected, 0, std::memory_order_relaxed)) { // set to 0 // memory_order_acquire
 								expected = 0;
-								auto rr = pop_end.compare_exchange_strong(expected, next, std::memory_order_release);
+								auto rr = pop_end.compare_exchange_weak(expected, next, std::memory_order_relaxed); // memory_order_release
 								assert(rr);
-								expnode->next_c.store(0, std::memory_order_seq_cst);
-								expnode->busy.store(false, std::memory_order_seq_cst);
+								//expnode->next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
+								expnode->busy.store(false, std::memory_order_relaxed); // memory_order_seq_cst
 								continue;
 							}
 						}
@@ -150,20 +150,20 @@ namespace gremsnoort::lockfree {
 				}
 				if (expected > 0) {
 					auto expnode = reinterpret_cast<node_t*>(expected);
-					auto next = expnode->next_c.load();
-					if (pop_end.compare_exchange_strong(expected, next, std::memory_order_acquire)) { // take non-zero OR pass -1 // memory_order_acquire
+					auto next = expnode->next_p.load();
+					if (pop_end.compare_exchange_weak(expected, next, std::memory_order_relaxed)) { // take non-zero OR pass -1 // memory_order_acquire
 						output = std::move(expnode->payload);
 						if (next == 0) {
 							while (true) {
 								type_t obs_expected = 0;
-								if (observed_last.compare_exchange_weak(obs_expected/*0*/, expected, std::memory_order_release)) {
+								if (observed_last.compare_exchange_weak(obs_expected/*0*/, expected, std::memory_order_relaxed)) { // memory_order_release
 									break;
 								}
 							}
 						}
 						else {
-							expnode->next_c.store(0, std::memory_order_seq_cst);
-							expnode->busy.store(false, std::memory_order_seq_cst);
+							//expnode->next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
+							expnode->busy.store(false, std::memory_order_relaxed); // memory_order_seq_cst
 						}
 						return true;
 					}
