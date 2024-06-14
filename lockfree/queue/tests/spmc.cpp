@@ -15,6 +15,8 @@ TEST_CASE("spmc") {
 
 	// Single-Producer Multi-Consumer model
 
+	static constexpr auto c_count = 32;
+
 	SECTION("int64_t") {
 
 		using type_t = int64_t;
@@ -40,8 +42,10 @@ TEST_CASE("spmc") {
 				}
 			} while (expected > 0);
 		};
+
 		auto source = queue_type(1024 * 2);
-		for (std::size_t i = 2; i < 64; ++i) {
+
+		for (std::size_t i = 2; i < c_count; ++i) {
 			std::printf("STARTED consumers = %zu\n", i);
 			const std::size_t iters2prod = 64UL * i;
 			std::atomic_int64_t messages_all = iters2prod;

@@ -11,9 +11,12 @@
 
 using namespace gremsnoort::lockfree;
 
-TEST_CASE("spmc") {
+TEST_CASE("mpmc") {
 
 	// Multi-Producer Multi-Consumer model
+
+	static constexpr auto p_count = 24;
+	static constexpr auto c_count = 24;
 
 	SECTION("int64_t") {
 
@@ -38,10 +41,11 @@ TEST_CASE("spmc") {
 				}
 			} while (expected > 0);
 		};
+
 		auto source = queue_type(1024 * 2);
 
-		for (std::size_t p = 2; p < 24; ++p) {
-			for (std::size_t c = 2; c < 24; ++c) {
+		for (std::size_t p = 2; p < p_count; ++p) {
+			for (std::size_t c = 2; c < c_count; ++c) {
 				std::printf("STARTED p/c = %zu/%zu\n", p, c);
 				const std::size_t iters2prod = 64UL * p * c;
 				std::atomic_int64_t messages_all = iters2prod;

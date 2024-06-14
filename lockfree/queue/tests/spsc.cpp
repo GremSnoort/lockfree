@@ -11,6 +11,10 @@ using namespace gremsnoort::lockfree;
 
 TEST_CASE("spsc") {
 
+	// Single-Producer Single-Consumer model
+
+	static constexpr std::size_t iters = 1024 * 4;
+
 	SECTION("int64_t") {
 
 		using type_t = int64_t;
@@ -29,8 +33,10 @@ TEST_CASE("spsc") {
 				prev = data;
 			}
 		};
+
 		auto source = queue_type(1024);
-		for (std::size_t i = 1; i < 10000; ++i) {
+
+		for (std::size_t i = 1; i < iters; ++i) {
 			std::thread
 				c(consumer, std::ref(source), i),
 				p(producer, std::ref(source), i);

@@ -70,4 +70,6 @@ jobs:
 
       - name: Test
         working-directory: local_build
-        run: ctest --rerun-failed --output-on-failure
+        run: |
+          get-childitem -path .
+          ctest --rerun-failed --output-on-failure

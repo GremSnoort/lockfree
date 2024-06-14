@@ -15,6 +15,9 @@ TEST_CASE("mpsc") {
 
 	// Multi-Producer Single-Consumer model
 
+	static constexpr auto p_count = 64;
+	static constexpr auto iters_per_prod = 1024 * 4;
+
 	SECTION("int64_t") {
 
 		using type_t = int64_t;
@@ -45,14 +48,15 @@ TEST_CASE("mpsc") {
 			}
 			//std::printf("CONSUMER EXIT\n");
 		};
+
 		auto source = queue_type(1024 * 2);
-		for (std::size_t i = 2; i < 64; ++i) {
+
+		for (std::size_t i = 2; i < p_count; ++i) {
 			std::printf("STARTED producers = %zu\n", i);
-			const std::size_t iters_pre_prod = 1024;
-			std::thread c(consumer, std::ref(source), iters_pre_prod * i, iters_pre_prod);
+			std::thread c(consumer, std::ref(source), iters_per_prod * i, iters_per_prod);
 			std::vector<std::thread> producers;
 			for (std::size_t j = 0; j < i; ++j) {
-				producers.emplace_back(producer, std::ref(source), iters_pre_prod);
+				producers.emplace_back(producer, std::ref(source), iters_per_prod);
 			}
 			for (auto& t : producers) {
 				t.join();

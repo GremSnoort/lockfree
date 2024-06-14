@@ -34,6 +34,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Catch2::Catch2WithMain
 )
 
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME})
+
 ###
 set(project lockfree_queue_mpsc_test)
 
@@ -70,6 +74,10 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Catch2::Catch2WithMain
 )
+
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME})
 
 ###
 set(project lockfree_queue_spmc_test)
@@ -108,6 +116,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Catch2::Catch2WithMain
 )
 
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME})
+
 ###
 set(project lockfree_queue_mpmc_test)
 
@@ -144,3 +156,7 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Catch2::Catch2WithMain
 )
+
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME})
