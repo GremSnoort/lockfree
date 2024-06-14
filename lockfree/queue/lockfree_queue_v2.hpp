@@ -21,6 +21,7 @@ namespace gremsnoort::lockfree {
 			std::atomic<type_t> next_p = 0;
 			//std::atomic<type_t> next_c = 0;
 			std::atomic_bool busy = false;
+			std::atomic_bool consumed = true;
 
 			node_t() = default;
 		};
@@ -81,6 +82,7 @@ namespace gremsnoort::lockfree {
 						{
 							bufref.payload = value_type(std::forward<Args&&>(args)...);
 							bufref.next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
+							bufref.consumed.store(false, std::memory_order_relaxed); // memory_order_seq_cst
 							//bufref.next_c.store(0, std::memory_order_relaxed); // memory_order_seq_cst
 							auto node = &bufref;
 							const auto desired = reinterpret_cast<type_t>(node);
@@ -126,46 +128,85 @@ namespace gremsnoort::lockfree {
 			while (true) {
 				
 				if (expected == 0) { // pop_end is 0
-					if (observed_last.compare_exchange_weak(expected/*0*/, 0, std::memory_order_relaxed)) { // memory_order_acquire
-						// 0->0 observed_last is 0
-						return false;
-					}
-					else {
-						// observed_last non-0
-						assert(expected > 0);
-						auto expnode = reinterpret_cast<node_t*>(expected);
-						auto next = expnode->next_p.load();
-						if (next > 0) {
-							if (observed_last.compare_exchange_weak(expected, 0, std::memory_order_relaxed)) { // set to 0 // memory_order_acquire
-								expected = 0;
-								auto rr = pop_end.compare_exchange_weak(expected, next, std::memory_order_relaxed); // memory_order_release
-								assert(rr);
-								//expnode->next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
-								expnode->busy.store(false, std::memory_order_relaxed); // memory_order_seq_cst
-								continue;
-							}
-						}
-					}
+					//if (observed_last.compare_exchange_weak(expected/*0*/, 0, std::memory_order_relaxed)) { // memory_order_acquire
+					//	// 0->0 observed_last is 0
+					//	return false;
+					//}
+					//else {
+					//	// observed_last non-0
+					//	assert(expected > 0);
+					//	auto expnode = reinterpret_cast<node_t*>(expected);
+					//	auto next = expnode->next_p.load();
+					//	if (next > 0) {
+					//		if (observed_last.compare_exchange_weak(expected, 0, std::memory_order_relaxed)) { // set to 0 // memory_order_acquire
+					//			expected = 0;
+					//			auto rr = pop_end.compare_exchange_weak(expected, next, std::memory_order_relaxed); // memory_order_release
+					//			assert(rr);
+					//			//expnode->next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
+					//			expnode->busy.store(false, std::memory_order_relaxed); // memory_order_seq_cst
+					//			continue;
+					//		}
+					//	}
+					//}
 					return false;
 				}
 				if (expected > 0) {
+					const auto orig = expected;
 					auto expnode = reinterpret_cast<node_t*>(expected);
-					auto next = expnode->next_p.load();
+					auto next = expnode->next_p.load(std::memory_order_relaxed);
+					auto consumed = expnode->consumed.load(std::memory_order_relaxed);
+
+					if (next == 0 && consumed) {
+						return false;
+					}
+					///
+					///if (!next && !busy) {
+					///	return false;
+					///}
+
 					if (pop_end.compare_exchange_weak(expected, next, std::memory_order_relaxed)) { // take non-zero OR pass -1 // memory_order_acquire
-						output = std::move(expnode->payload);
+						bool consumed_expected = false;
+						if (expnode->consumed.compare_exchange_strong(consumed_expected, true, std::memory_order_relaxed)) {
+							output = std::move(expnode->payload);
+						}
 						if (next == 0) {
-							while (true) {
-								type_t obs_expected = 0;
-								if (observed_last.compare_exchange_weak(obs_expected/*0*/, expected, std::memory_order_relaxed)) { // memory_order_release
-									break;
-								}
-							}
+							expected = next;
+							auto rr = pop_end.compare_exchange_strong(expected, orig, std::memory_order_relaxed);
+							assert(rr);
+							expected = orig;
 						}
 						else {
-							//expnode->next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
-							expnode->busy.store(false, std::memory_order_relaxed); // memory_order_seq_cst
+							bool busy_expected = true;
+							auto rr = expnode->busy.compare_exchange_strong(busy_expected, false, std::memory_order_relaxed);
+							assert(rr);
 						}
-						return true;
+						if (!consumed_expected) {
+							return true;
+						}
+
+						///const auto busy = expnode->busy.load(std::memory_order_relaxed);
+						///if (busy) {
+						///	
+						///	//while (true) {}
+						///	bool busy_expected = true;
+						///	auto rr = expnode->busy.compare_exchange_strong(busy_expected, false, std::memory_order_relaxed);
+						///	assert(rr);
+						///}
+						///if (busy) return true;
+						
+						///if (next == 0) {
+						///	while (true) {
+						///		type_t obs_expected = 0;
+						///		if (observed_last.compare_exchange_weak(obs_expected/*0*/, expected, std::memory_order_relaxed)) { // memory_order_release
+						///			break;
+						///		}
+						///	}
+						///}
+						///else {
+						///	//expnode->next_p.store(0, std::memory_order_relaxed); // memory_order_seq_cst
+						///	expnode->busy.store(false, std::memory_order_relaxed); // memory_order_seq_cst
+						///}
+						///return true;
 					}
 				}
 			}
