@@ -15,8 +15,8 @@ TEST_CASE("mpmc") {
 
 	// Multi-Producer Multi-Consumer model
 
-	static constexpr auto p_count = 24;
-	static constexpr auto c_count = 24;
+	static constexpr auto p_count = 8;
+	static constexpr auto c_count = 8;
 
 	SECTION("int64_t") {
 

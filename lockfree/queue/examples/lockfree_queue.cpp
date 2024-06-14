@@ -26,6 +26,7 @@ struct options_t {
 	std::size_t producers_count = 4;
 	std::size_t consumers_count = 4;
 	std::size_t messages_count = 1000;
+	std::size_t repetitions_count = 1;
 	std::size_t sleep_on_send = 0;
 };
 
@@ -110,7 +111,7 @@ int main(int argc, char* argv[]) {
 		prod_o = "p", prod_descr = "Producers count",
 		cons_o = "c", cons_descr = "Consumers count",
 		msgc_o = "m", msgc_descr = "Message count per producer",
-		alloc_o = "a", alloc_descr = "Allocator (default/mimalloc)",
+		reps_o = "r", reps_descr = "Repetitions count",
 		sleep_o = "s", sleep_descr = "Sleep on send per producer, in microseconds";
 
 	desc.add_options()
@@ -118,7 +119,7 @@ int main(int argc, char* argv[]) {
 		(prod_o, prod_descr, cxxopts::value<std::size_t>())
 		(cons_o, cons_descr, cxxopts::value<std::size_t>())
 		(msgc_o, msgc_descr, cxxopts::value<std::size_t>())
-		(alloc_o, alloc_descr, cxxopts::value<std::string>())
+		(reps_o, reps_descr, cxxopts::value<std::size_t>())
 		(sleep_o, sleep_descr, cxxopts::value<std::size_t>())
 		;
 
@@ -130,12 +131,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	options_t opts;
-	std::string allocator = "default";
 
 	desc.retrieve_opt(opts.producers_count, prod_o, prod_descr, result, false);
 	desc.retrieve_opt(opts.consumers_count, cons_o, cons_descr, result, false);
 	desc.retrieve_opt(opts.messages_count, msgc_o, msgc_descr, result, false);
-	desc.retrieve_opt(allocator, alloc_o, alloc_descr, result, false);
+	desc.retrieve_opt(opts.repetitions_count, reps_o, reps_descr, result, false);
 	desc.retrieve_opt(opts.sleep_on_send, sleep_o, sleep_descr, result, false);
 
 	if (opts.producers_count <= 0 || opts.consumers_count <= 0 || opts.messages_count <= 0) {
@@ -149,20 +149,9 @@ int main(int argc, char* argv[]) {
 		p.stop();
 	};
 
-	for (auto i = 0; i < 100; ++i) {
-		if (allocator == "default") {
-			process(process_t<type_t>());
-		}
-		else if (allocator == "mimalloc") {
-			process(process_t<type_t>());
-		}
-		//else if (allocator == "jemalloc") {
-		//	process(process_t<type_t, gremsnoort::lockfree::allocator::jemalloc_t>());
-		//}
-		else {
-			std::fprintf(stderr, "!!! Unsupported alloc `%s` !!!\n", allocator.data());
-		}
-	}	
+	for (auto i = 0; i < opts.repetitions_count; ++i) {
+		process(process_t<type_t>());
+	}
 
 	return 0;
 }

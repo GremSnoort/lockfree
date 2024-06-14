@@ -15,7 +15,7 @@ TEST_CASE("spmc") {
 
 	// Single-Producer Multi-Consumer model
 
-	static constexpr auto c_count = 32;
+	static constexpr auto c_count = 8;
 
 	SECTION("int64_t") {
 

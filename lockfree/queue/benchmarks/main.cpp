@@ -11,7 +11,7 @@
 
 using type_t = uint64_t;
 
-static const auto threadsCount = 16;
+static const auto threadsCount = 32;
 static const auto iterationsCount = 1000 * 500;
 
 template<typename Q>
@@ -24,11 +24,11 @@ public:
 	std::atomic_bool is_running = true;
 	std::vector<std::thread> routines;
 
-	FixtureQueue() : queue(1024 * 8) {}
+	FixtureQueue() : queue(1024 * 2) {}
 
-	auto startUp() {
+	auto startUp(const std::size_t tc) {
 		is_running = true;
-		for (auto i = 0; i < threadsCount; ++i) {
+		for (auto i = 0; i < tc; ++i) {
 			routines.emplace_back([this]() {
 				type_t data;
 				while (is_running && !queue.push(type_t(std::rand()))) {
@@ -64,7 +64,7 @@ public:
 
 BENCHMARK_TEMPLATE_DEFINE_F(FixtureQueue, BOOST_QUEUE, ::boost::lockfree::queue<type_t>)(::benchmark::State& st) {
 	if (st.thread_index() == 0) {
-		startUp();
+		startUp(st.threads());
 		// Setup code here.
 	}
 	type_t data;
@@ -79,7 +79,7 @@ BENCHMARK_TEMPLATE_DEFINE_F(FixtureQueue, BOOST_QUEUE, ::boost::lockfree::queue<
 
 BENCHMARK_TEMPLATE_DEFINE_F(FixtureQueue, GS_DEF_QUEUE, ::gremsnoort::lockfree::queue_traits<type_t>::queue_t)(::benchmark::State& st) {
 	if (st.thread_index() == 0) {
-		startUp();
+		startUp(st.threads());
 		// Setup code here.
 	}
 	type_t data;
@@ -92,8 +92,8 @@ BENCHMARK_TEMPLATE_DEFINE_F(FixtureQueue, GS_DEF_QUEUE, ::gremsnoort::lockfree::
 	}
 }
 
-BENCHMARK_REGISTER_F(FixtureQueue, BOOST_QUEUE)->Threads(threadsCount)->Iterations(iterationsCount);
-BENCHMARK_REGISTER_F(FixtureQueue, GS_DEF_QUEUE)->Threads(threadsCount)->Iterations(iterationsCount);
+BENCHMARK_REGISTER_F(FixtureQueue, BOOST_QUEUE)->ThreadRange(1, threadsCount)->Iterations(iterationsCount);
+BENCHMARK_REGISTER_F(FixtureQueue, GS_DEF_QUEUE)->ThreadRange(1, threadsCount)->Iterations(iterationsCount);
 
 int main(int argc, char** argv) {
 	::benchmark::Initialize(&argc, argv);
